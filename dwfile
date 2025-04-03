@@ -1,0 +1,43 @@
+<ee:transform doc:name="Prepare Data for Excel Generation" doc:id="45fg7a5e-38c4-5edc-489i0ud3n43c">
+    <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+import * from dw::core::Strings
+type exportDateFormat = String { format: "MM/dd/uuu" }
+type reportDateFormat = String { format: "dd MM uuuu HH:mm a" }
+
+var problemsSnapshot=vars.wcw_problems_snapshot default {}
+var ispRatings=vars.wcw_isp_ratings default {}
+var totalExcelData=if(sizeOf(ispRatings) >= sizeOf(problemsSnapshot)) ispRatings else problemsSnapshot
+var combinedTotalExcel=totalExcelData groupBy $.ITEM_ID
+
+var itemPublish=vars.wcw_items_publish
+var eklDbData=vars.wcw_ar_system_ekl filter ($.ENTITY_TYPE == "ekl")
+var ispDbData=vars.wcw.ar_system_ekl filter ($.ENTITY_TYPE == "system")
+var arDbData=vars.wcw_ar_system_ekl filter ($.ENTITY_TYPE == "ar")
+
+---
+{
+    columnHeaders: [
+        "GROUP ID", "NMP", "ITEM ID", "Item Date", "Item Name", "Direct Report(s)", 
+        "Addressee (FROM)", "ISP Level 4", "ISP ID and Name", "AR ID and Name", 
+        "EKL ID and Name", "Design Rating", "ISP ID and Name", "AR ID and Name", "EKL ID and Name"
+    ],
+    
+    data: flatten(flatten(if(isEmpty(itemPublish)) []
+        else((itemPublish groupBy $.ITEM_ID) pluck ((value, key, index) ->
+            // Your existing complex data transformation logic here
+            // This generates the actual data rows
+        ))))
+}]]></ee:set-payload>
+    </ee:message>
+</ee:transform>
+
+<!-- Then invoke your Java method -->
+<java:invoke doc:name="Generate Excel File" doc:id="your-unique-id"
+    class="com.yourcompany.ExcelGenerator" 
+    method="generateExcel">
+    <java:args>
+        <java:arg value="#[payload]" />
+    </java:args>
+</java:invoke>
