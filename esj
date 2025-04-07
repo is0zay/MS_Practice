@@ -1,0 +1,148 @@
+package com.example.elastic;
+
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
+import java.util.UUID;
+
+/**
+ * Service for formatting data for Elasticsearch operations with precise formatting control.
+ */
+@Service
+public class ElasticsearchBulkFormatter {
+    
+    private final ObjectMapper objectMapper;
+    private final String DEFAULT_INDEX = "items_index";
+
+    public ElasticsearchBulkFormatter() {
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
+
+    /**
+     * Formats a list of items into the exact format required by Elasticsearch's bulk API.
+     * Generates the raw newline-delimited JSON format expected by _bulk endpoint.
+     * 
+     * @param items List of item data as maps
+     * @return String containing the formatted data for Elasticsearch bulk API
+     */
+    public String formatForBulkApi(List<Map<String, Object>> items) {
+        if (items == null || items.isEmpty()) {
+            return "";
+        }
+        
+        StringBuilder bulkRequestBody = new StringBuilder();
+        
+        try {
+            for (Map<String, Object> item : items) {
+                // Create the action line (must be first)
+                Map<String, Object> action = new LinkedHashMap<>();
+                
+                // Get document ID and create the index action
+                String documentId = getDocumentId(item);
+                Map<String, Object> indexDetails = new LinkedHashMap<>();
+                indexDetails.put("_index", DEFAULT_INDEX);
+                indexDetails.put("_id", documentId);
+                
+                action.put("index", indexDetails);
+                
+                // Add the action line
+                bulkRequestBody.append(objectMapper.writeValueAsString(action));
+                bulkRequestBody.append("\n");
+                
+                // Add the document content line
+                bulkRequestBody.append(objectMapper.writeValueAsString(item));
+                bulkRequestBody.append("\n");
+            }
+        } catch (JsonProcessingException e) {
+            // Return error information if JSON processing fails
+            return "{\"error\":\"Failed to generate bulk request: " + e.getMessage() + "\"}";
+        }
+        
+        return bulkRequestBody.toString();
+    }
+    
+    /**
+     * Formats a single document for Elasticsearch index operation.
+     * Returns JSON in the proper format for an index API call.
+     * 
+     * @param item The item data to be indexed
+     * @return Map with the document and metadata for Elasticsearch
+     */
+    public Map<String, Object> formatForIndexApi(Map<String, Object> item) {
+        if (item == null) {
+            return createErrorResponse("No item provided for indexing");
+        }
+        
+        // The document itself is the final response - no wrapping needed for index API
+        return item;
+    }
+    
+    /**
+     * Formats a single document for Elasticsearch update operation.
+     * Properly wraps the document in the "doc" field as required by the update API.
+     * 
+     * @param item The item data to be updated
+     * @return Map formatted for Elasticsearch update API
+     */
+    public Map<String, Object> formatForUpdateApi(Map<String, Object> item) {
+        if (item == null) {
+            return createErrorResponse("No item provided for updating");
+        }
+        
+        // Create the update request body with "doc" field as required by Elasticsearch
+        Map<String, Object> updateBody = new LinkedHashMap<>();
+        updateBody.put("doc", item);
+        
+        return updateBody;
+    }
+    
+    /**
+     * Provides metadata for a document operation (useful for constructing URLs)
+     * 
+     * @param item The document data
+     * @return Map containing index name and document ID
+     */
+    public Map<String, Object> getDocumentMetadata(Map<String, Object> item) {
+        if (item == null) {
+            return createErrorResponse("No item provided");
+        }
+        
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("_index", DEFAULT_INDEX);
+        metadata.put("_id", getDocumentId(item));
+        
+        return metadata;
+    }
+    
+    /**
+     * Extracts document ID from an item, using itemId or generating a UUID if not present.
+     */
+    private String getDocumentId(Map<String, Object> item) {
+        if (item.containsKey("itemId")) {
+            return String.valueOf(item.get("itemId"));
+        } else {
+            return UUID.randomUUID().toString();
+        }
+    }
+    
+    /**
+     * Creates an error response.
+     */
+    private Map<String, Object> createErrorResponse(String message) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("error", message);
+        return response;
+    }
+}
