@@ -1,0 +1,108 @@
+package com.example.elastic;
+
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * REST controller for Elasticsearch formatting that produces output in the exact format
+ * expected by Elasticsearch's APIs.
+ */
+@RestController
+@RequestMapping("/api/es")
+@Tag(name = "Elasticsearch Direct Format API", 
+     description = "API for formatting data in the exact format expected by Elasticsearch")
+public class ElasticsearchBulkController {
+
+    private final ElasticsearchBulkFormatter formatter;
+
+    public ElasticsearchBulkController(ElasticsearchBulkFormatter formatter) {
+        this.formatter = formatter;
+    }
+
+    /**
+     * Formats data for Elasticsearch's _bulk API in the exact format required, with
+     * action lines and document lines properly interleaved.
+     * 
+     * @param items List of item data
+     * @return String formatted for direct use with Elasticsearch's _bulk API
+     */
+    @PostMapping(value = "/bulk", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Format for Elasticsearch _bulk API",
+               description = "Takes a list of items and formats them for direct use with Elasticsearch's _bulk endpoint")
+    public ResponseEntity<String> formatForBulkApi(@RequestBody List<Map<String, Object>> items) {
+        String bulkRequestBody = formatter.formatForBulkApi(items);
+        return ResponseEntity.ok(bulkRequestBody);
+    }
+    
+    /**
+     * Formats a single document for Elasticsearch's index API.
+     * The response is formatted for direct use in a PUT request to Elasticsearch.
+     * 
+     * @param item The document to be indexed
+     * @return Document formatted for index API
+     */
+    @PostMapping("/index")
+    @Operation(summary = "Format for Elasticsearch index API",
+               description = "Takes a single document and formats it for direct use with Elasticsearch's index endpoint")
+    public ResponseEntity<Map<String, Object>> formatForIndexApi(@RequestBody Map<String, Object> item) {
+        Map<String, Object> indexBody = formatter.formatForIndexApi(item);
+        return ResponseEntity.ok(indexBody);
+    }
+    
+    /**
+     * Formats a single document update for Elasticsearch's update API.
+     * The response is formatted for direct use in a POST request to Elasticsearch.
+     * 
+     * @param item The document fields to update
+     * @return Update request body formatted for update API
+     */
+    @PostMapping("/update")
+    @Operation(summary = "Format for Elasticsearch update API",
+               description = "Takes document fields and formats them for direct use with Elasticsearch's update endpoint")
+    public ResponseEntity<Map<String, Object>> formatForUpdateApi(@RequestBody Map<String, Object> item) {
+        Map<String, Object> updateBody = formatter.formatForUpdateApi(item);
+        return ResponseEntity.ok(updateBody);
+    }
+    
+    /**
+     * Get the metadata for a document (index name and ID).
+     * Useful for constructing Elasticsearch URLs.
+     * 
+     * @param item The document data
+     * @return Metadata including index name and document ID
+     */
+    @PostMapping("/metadata")
+    @Operation(summary = "Get document metadata",
+               description = "Returns the index name and document ID for constructing Elasticsearch URLs")
+    public ResponseEntity<Map<String, Object>> getDocumentMetadata(@RequestBody Map<String, Object> item) {
+        Map<String, Object> metadata = formatter.getDocumentMetadata(item);
+        return ResponseEntity.ok(metadata);
+    }
+    
+    /**
+     * Convenience endpoint to format a single document for bulk API.
+     * Useful for testing or simple cases.
+     * 
+     * @param item The document to format
+     * @return Bulk API formatted string for a single document
+     */
+    @PostMapping("/bulk/single")
+    @Operation(summary = "Format a single document for bulk API",
+               description = "Convenience method to format a single document for the bulk API")
+    public ResponseEntity<String> formatSingleDocumentForBulk(@RequestBody Map<String, Object> item) {
+        String bulkRequestBody = formatter.formatForBulkApi(Collections.singletonList(item));
+        return ResponseEntity.ok(bulkRequestBody);
+    }
+}
