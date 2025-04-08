@@ -31,6 +31,13 @@ var arDbData=vars.wcw_ar_system_ekl filter ($.ENTITY_TYPE == "ar")
         ))))
 }]]></ee:set-payload>
     </ee:message>
+<ee:variables>
+        <!-- Store a JSON copy for inspection -->
+        <ee:set-variable variableName="excelDataJson"><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-variable>
 </ee:transform>
 
 <!-- Then invoke your Java method -->
