@@ -5,7 +5,6 @@ import org.apache.poi.ss.usermodel.*;
 import java.util.Map;
 import java.util.List;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 public class ExcelGenerator {
     
@@ -16,10 +15,12 @@ public class ExcelGenerator {
      * Generates an Excel file from the provided data structure
      * 
      * @param data A map containing columnHeaders (List<String>) and data (List<Map<String, Object>>)
-     * @return Byte array representing the Excel file
+     * @return Byte array representing the Excel file and metadata
      */
-    public static byte[] generateExcel(Map<String, Object> data) {
-        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+    public static Map<String, Object> generateExcel(Map<String, Object> data) {
+        try {
+            XSSFWorkbook workbook = new XSSFWorkbook();
+            
             @SuppressWarnings("unchecked")
             List<String> headers = (List<String>) data.get("columnHeaders");
             
@@ -72,12 +73,32 @@ public class ExcelGenerator {
                 sheet.createFreezePane(0, 1);
             }
             
-            // Write to byte array and return
+            // Write workbook to byte array
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             workbook.write(bos);
-            return bos.toByteArray();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to generate Excel file", e);
+            byte[] excelBytes = bos.toByteArray();
+            
+            // Close workbook and ByteArrayOutputStream to release resources
+            workbook.close();
+            bos.close();
+            
+            // Return success status with file data and information
+            return Map.of(
+                "status", "SUCCESS",
+                "message", "Excel file generated successfully",
+                "fileData", excelBytes,
+                "recordCount", totalRecords,
+                "sheetCount", numberOfSheets
+            );
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Return failure status with error information
+            return Map.of(
+                "status", "FAILURE",
+                "message", "Failed to generate Excel file: " + e.getMessage(),
+                "exception", e.getClass().getName()
+            );
         }
     }
     
