@@ -1,0 +1,48 @@
+<!-- Extract just the reportDashboard from the payload -->
+    <ee:transform doc:name="Extract reportDashboard">
+        <ee:variables>
+            <ee:set-variable variableName="reportDashboardOnly"><![CDATA[%dw 2.0
+                output application/java
+                ---
+                payload.BusinessObj.reportDashboard
+            ]]></ee:set-variable>
+        </ee:variables>
+    </ee:transform>
+    
+    <!-- Call Java service with just the reportDashboard -->
+    <java:invoke-static doc:name="Transform to ES Format" 
+                        class="com.execution.api.util.ElasticSearchUtils" 
+                        method="convertToESIngestPayload(java.util.List)">
+        <java:args>
+            <java:arg value="#[vars.reportDashboardOnly]" />
+        </java:args>
+    </java:invoke-static>
+
+    <logger level="INFO" doc:name="Log ES Payload" message="ES Payload: #[payload]" />
+    
+    <!-- Send to Elasticsearch -->
+    <http:request method="POST" doc:name="Send to Elasticsearch" 
+                  config-ref="Elasticsearch_Config" 
+                  path="/your-index/_doc">
+        <http:headers>
+            <![CDATA[#[output application/java
+            ---
+            {
+                "Content-Type": "application/json"
+            }]]]>
+        </http:headers>
+    </http:request>
+    
+    <!-- Handle response -->
+    <ee:transform doc:name="Transform Response">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+                output application/json
+                ---
+                {
+                    "status": "SUCCESS",
+                    "esResponse": payload
+                }
+            ]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
