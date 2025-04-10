@@ -48,3 +48,54 @@ payload
         <java:arg value="#[payload]" />
     </java:args>
 </java:invoke>
+
+
+
+ <!-- Process the response from Java method -->
+        <choice>
+            <when expression="#[payload.status == 'SUCCESS']">
+                <!-- Set file name with timestamp -->
+                <set-variable variableName="fileName" 
+                    value='#["report_" ++ now() as String {format: "yyyyMMdd_HHmmss"} ++ ".xlsx"]'/>
+                
+                <!-- Log success -->
+                <logger level="INFO" 
+                    message="Excel generation successful: #[vars.fileName] with #[payload.recordCount] records across #[payload.sheetCount] sheets"/>
+                
+                <!-- Set response for file download -->
+                <set-payload value="#[payload.fileData]"/>
+                <set-variable variableName="contentDisposition" 
+                    value='#["attachment; filename=\"" ++ vars.fileName ++ "\""]'/>
+                
+                <http:set-response statusCode="200">
+                    <http:headers>
+                        <http:header key="Content-Type" value="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+                        <http:header key="Content-Disposition" value="#[vars.contentDisposition]"/>
+                    </http:headers>
+                </http:set-response>
+            </when>
+            <otherwise>
+                <!-- Return error message as JSON -->
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    status: "error",
+    message: payload.message default "An unknown error occurred during Excel generation",
+    details: {
+        exception: payload.exception default "Unknown"
+    }
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <logger level="ERROR" message="Excel generation failed: #[payload.message]"/>
+                
+                <http:set-response statusCode="500">
+                    <http:headers>
+                        <http:header key="Content-Type" value="application/json"/>
+                    </http:headers>
+                </http:set-response>
+            </otherwise>
+        </choice>
