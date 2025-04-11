@@ -1,0 +1,50 @@
+<!-- Log payload type for debugging -->
+        <logger level="DEBUG" message="Original payload type: #[typeOf(payload)]" doc:name="Log Payload Type"/>
+        
+        <!-- Transform to ensure we have a List<Map<String, Object>> without type conversion -->
+        <ee:transform doc:name="Transform to List<Map<String, Object>>">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+// Ensure we're working with a List<Map<String, Object>> for Elasticsearch
+// WITHOUT converting data types
+(
+  // If payload is already an array
+  if (payload is Array) 
+    // Map each element to ensure it's a proper Map<String, Object>
+    payload map (item, index) -> 
+      // If item is already an object, use it as is
+      if (item is Object) 
+        item
+      // Otherwise, wrap it in an object
+      else 
+        {
+          "value": item,
+          "generatedId": index + 1
+        }
+  // If payload is a single object, wrap it in an array
+  else if (payload is Object) 
+    [payload]
+  // For primitive values or null, create a simple object in an array
+  else 
+    [{
+      "value": payload,
+      "generatedId": 1
+    }]
+) as Array<Object>]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Log transformed payload -->
+        <logger level="DEBUG" message="Transformed payload type: #[typeOf(payload)]" doc:name="Log Transformed Type"/>
+        <logger level="DEBUG" message="Transformed payload: #[payload]" doc:name="Log Transformed Payload"/>
+        
+        <!-- Use try block to handle potential errors -->
+        <try doc:name="Try">
+            <!-- Invoke Type-Preserving Java method -->
+            <java:invoke-static class="com.example.elastic.TypePreservingElasticsearchFormatter" method="formatForElasticsearch(List)" doc:name="Format for ES Bulk API">
+                <java:args>
+                    <java:arg value="#[payload]" />
+                </java:args>
+            </java:invoke-static>
