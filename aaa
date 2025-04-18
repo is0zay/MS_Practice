@@ -6,10 +6,11 @@ public static String formatForElasticsearch(String jsonReportData) {
     try {
         // Use a JSON library like Jackson or Gson to parse the string
         ObjectMapper mapper = new ObjectMapper();
-        List<Map<String, Object>> reports = mapper.readValue(jsonReportData, 
-            new TypeReference<List<Map<String, Object>>>() {});
+        ArrayList<Map<String, Object>> reports = mapper.readValue(jsonReportData, 
+            new TypeReference<ArrayList<Map<String, Object>>>() {});
         
-        // Rest of your original method implementation using the parsed reports
+        // Call the original method with the parsed ArrayList
+        return formatForElasticsearch(reports);
         
     } catch (Exception e) {
         // Handle parsing errors
