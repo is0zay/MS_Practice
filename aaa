@@ -1,0 +1,18 @@
+public static String formatForElasticsearch(String jsonReportData) {
+    if(jsonReportData == null || jsonReportData.isEmpty()) {
+        return "";
+    }
+    
+    try {
+        // Use a JSON library like Jackson or Gson to parse the string
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Object>> reports = mapper.readValue(jsonReportData, 
+            new TypeReference<List<Map<String, Object>>>() {});
+        
+        // Rest of your original method implementation using the parsed reports
+        
+    } catch (Exception e) {
+        // Handle parsing errors
+        return "Error parsing report data: " + e.getMessage();
+    }
+}
